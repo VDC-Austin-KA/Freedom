@@ -12,14 +12,29 @@ button{position:absolute;top:6px;right:6px;background:#33404d;color:#fff;border:
 li{margin:4px 0}
 </style></head><body><main>
 <h1>Radar</h1>
-<div class="sub">Find and identify every device on your Wi-Fi, with a signal finder.</div>
-<p>Radar lists the devices on the network you are connected to, works out what each one is
-(camera, computer, phone, TV, printer, smart-home, router) and shows them on a phone-friendly page.
-A website cannot scan your network, so Radar is a small Python program you run on a device
-that is on that Wi-Fi. Nothing is installed and your device list never leaves your network.</p>
-<a class="btn" href="/wifi_scanner.py" download>Download wifi_scanner.py</a>
+<div class="sub">Find and identify nearby wireless devices, with pictures and a closer/farther finder.</div>
+<p>Radar finds the wireless devices around you, works out what each one is (AirTags and other trackers,
+phones, AirPods and headphones, watches, cameras, TVs, computers, cars, smart-home gadgets) and groups them
+so you can tell them apart. A website cannot reach your phone's radios, so Radar is a small Python
+program you run in an app. Your device list never leaves your phone.</p>
 
-<h2>iPhone or iPad (everything on the phone)</h2>
+<h2>iPhone app: Bluetooth + Wi-Fi, pictures, finder</h2>
+<div class="sub">Get "Pythonista 3" from the App Store (paid, one time). Open it, swipe to the console
+(the &gt;_ screen), paste this and tap Return:</div>
+<pre><button>Copy</button><code>import os,runpy,urllib.request as u;d=os.path.expanduser('~/Documents');o=u.build_opener();o.addheaders=[('User-Agent','Radar/1.0')];u.install_opener(o);[u.urlretrieve('https://radar.ackerworks.com/'+f,os.path.join(d,f)) for f in('radar_ios.py','wifi_scanner.py')];runpy.run_path(os.path.join(d,'radar_ios.py'),run_name='__main__')</code></pre>
+<div class="sub">Tap Allow for Bluetooth (and for local network when you tap Scan Wi-Fi).
+Tap any device for its picture, details and a live signal meter: walk around and watch the number
+rise as you get closer. Next time, open radar_ios.py in Pythonista and tap Run.</div>
+<ul>
+<li>Sees everything advertising over Bluetooth Low Energy, on any network or none:
+most phones, AirPods and earbuds, AirTags, Tiles, SmartTags, watches, fitness bands,
+speakers, TVs, many cars, cameras and smart-home gadgets.</li>
+<li>Scan Wi-Fi adds the devices on the network you are connected to.</li>
+<li>iPhones do not let any app see Wi-Fi devices on other networks, Bluetooth Classic-only devices
+(older speakers, car stereos), or other radios such as Zigbee or cellular.</li>
+</ul>
+
+<h2>iPhone, free option (Wi-Fi network only, text list)</h2>
 <div class="sub">Install the free app "a-Shell" from the App Store, open it, and paste:</div>
 <pre><button>Copy</button><code>curl -O https://radar.ackerworks.com/wifi_scanner.py
 python3 wifi_scanner.py</code></pre>
@@ -52,8 +67,8 @@ python wifi_scanner.py</code></pre>
 that broadcast their own Wi-Fi radio (routers, extenders, many printers, cameras and TVs).</li>
 <li>Phones hide hardware addresses from apps, so scans run on a phone identify devices by
 name and services only. A computer scan also shows the hardware maker.</li>
-<li>iPhones do not let apps read Wi-Fi signal strength, so the signal finder is not available
-when Radar runs on an iPhone.</li>
+<li>iPhones do not let apps read Wi-Fi signal strength, so on iPhone the finder works for
+Bluetooth devices only.</li>
 </ul>
 </main>
 <script>
