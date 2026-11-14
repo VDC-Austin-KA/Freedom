@@ -37,3 +37,9 @@ Here the Signal tab measures from the computer (Linux/Windows), not the phone.
 - The link contains a random key; anyone you give it to (on your Wi-Fi) can see the list.
 
 `python3 wifi_scanner.py --once` prints the scan as JSON instead.
+
+### Download page
+
+`site/` is the public download page served at https://radar.ackerworks.com (a Cloudflare
+Worker that serves `site/index.html` and `wifi_scanner.py`). Redeploy after changes with
+`CLOUDFLARE_API_TOKEN=… site/deploy.sh`.
