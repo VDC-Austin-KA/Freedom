@@ -18,6 +18,7 @@ import json, sys
 files = {
     '/': [open('site/index.html').read(), 'text/html; charset=utf-8'],
     '/wifi_scanner.py': [open('wifi_scanner.py').read(), 'text/x-python; charset=utf-8'],
+    '/radar_ios.py': [open('radar_ios.py').read(), 'text/x-python; charset=utf-8'],
 }
 open(sys.argv[1], 'w').write('const FILES = %s;\n' % json.dumps(files) + '''
 export default {

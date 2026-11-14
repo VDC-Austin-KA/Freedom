@@ -19,7 +19,18 @@ program does the scanning and your phone's browser is the screen.
 
 The Signal tab then measures from the phone itself: walk around, stronger = closer.
 
-**iPhone or iPad, everything on the phone**
+**iPhone app: Bluetooth + Wi-Fi, pictures, finder** (`radar_ios.py`)
+
+Runs in *Pythonista 3* (App Store, paid), so nothing is sideloaded. Paste the install line from
+https://radar.ackerworks.com into Pythonista's console. It lists every nearby Bluetooth LE
+advertiser (any network or none) plus your Wi-Fi network, identifies each one (Apple
+AirPods/AirTag/Find My/AirPlay broadcasts, Microsoft, Samsung, Google Find Hub, Tile and other
+tracker signals, standard Bluetooth services, the device's own name, and the full Bluetooth SIG
+maker list), shows a Wikipedia picture of the product, and has a live signal meter for finding it.
+iOS does not let any app see Wi-Fi devices on other networks, Bluetooth Classic-only devices,
+or other radios.
+
+**iPhone or iPad, free, Wi-Fi network only**
 
 1. Install the free *a-Shell* app from the App Store.
 2. In a-Shell: `curl -O https://radar.ackerworks.com/wifi_scanner.py` then
@@ -51,5 +62,5 @@ Here the Signal tab measures from the computer (Linux/Windows), not the phone.
 ### Download page
 
 `site/` is the public download page served at https://radar.ackerworks.com (a Cloudflare
-Worker that serves `site/index.html` and `wifi_scanner.py`). Redeploy after changes with
+Worker that serves `site/index.html`, `wifi_scanner.py` and `radar_ios.py`). Redeploy after changes with
 `CLOUDFLARE_API_TOKEN=… site/deploy.sh`.
