@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radar - Wi-Fi device scanner</title>
+<style>
+body{font:16px/1.5 system-ui,sans-serif;margin:0;background:#0f1419;color:#e6e9ec}
+main{max-width:680px;margin:auto;padding:24px 16px 48px}
+h1{margin:0 0 4px}h2{font-size:17px;margin:28px 0 6px}.sub{color:#8a97a5}
+pre{position:relative;background:#182029;border-radius:10px;padding:36px 12px 12px;overflow-x:auto;font-size:13px;margin:6px 0}
+a.btn{display:inline-block;background:#2b7de9;color:#fff;text-decoration:none;border-radius:8px;padding:10px 16px;margin:14px 0}
+button{position:absolute;top:6px;right:6px;background:#33404d;color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:12px}
+li{margin:4px 0}
+</style></head><body><main>
+<h1>Radar</h1>
+<div class="sub">Find and identify every device on your Wi-Fi, with a signal finder.</div>
+<p>Radar lists the devices on the network you are connected to, works out what each one is
+(camera, computer, phone, TV, printer, smart-home, router) and shows them on a phone-friendly page.
+A website cannot scan your network, so Radar is a small Python program you run on a device
+that is on that Wi-Fi. Nothing is installed and your device list never leaves your network.</p>
+<a class="btn" href="/wifi_scanner.py" download>Download wifi_scanner.py</a>
+
+<h2>iPhone or iPad (everything on the phone)</h2>
+<div class="sub">Install the free app "a-Shell" from the App Store, open it, and paste:</div>
+<pre><button>Copy</button><code>curl -O https://radar.ackerworks.com/wifi_scanner.py
+python3 wifi_scanner.py</code></pre>
+<div class="sub">Tap Allow when iOS asks to find devices on your local network. The device list
+prints in a-Shell after about 40 seconds. Next time, just run the second line.</div>
+
+<h2>Android phone (everything on the phone)</h2>
+<div class="sub">Install Termux and Termux:API from F-Droid, then in Termux:</div>
+<pre><button>Copy</button><code>pkg install -y python termux-api curl
+curl -O https://radar.ackerworks.com/wifi_scanner.py
+python wifi_scanner.py</code></pre>
+
+<h2>Mac or Linux computer</h2>
+<pre><button>Copy</button><code>curl -O https://radar.ackerworks.com/wifi_scanner.py
+python3 wifi_scanner.py</code></pre>
+
+<h2>Windows computer</h2>
+<div class="sub">Needs Python from python.org. In PowerShell:</div>
+<pre><button>Copy</button><code>curl.exe -O https://radar.ackerworks.com/wifi_scanner.py
+python wifi_scanner.py</code></pre>
+
+<h2>Then</h2>
+<p>Open the link it prints. Use the "From phone" link to view it on any phone on the same Wi-Fi
+(this is how to use it with an iPhone).</p>
+
+<h2>Good to know</h2>
+<ul>
+<li>Only scan networks you own or are allowed to check.</li>
+<li>The signal finder measures from the device running Radar, and can only range devices
+that broadcast their own Wi-Fi radio (routers, extenders, many printers, cameras and TVs).</li>
+<li>Phones hide hardware addresses from apps, so scans run on a phone identify devices by
+name and services only. A computer scan also shows the hardware maker.</li>
+<li>iPhones do not let apps read Wi-Fi signal strength, so the signal finder is not available
+when Radar runs on an iPhone.</li>
+</ul>
+</main>
+<script>
+for(const b of document.querySelectorAll('pre button'))b.onclick=()=>{
+  navigator.clipboard.writeText(b.nextElementSibling.textContent);b.textContent='Copied';
+  setTimeout(()=>b.textContent='Copy',1500)};
+</script></body></html>
