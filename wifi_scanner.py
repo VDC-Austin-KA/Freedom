@@ -4,11 +4,12 @@ and serves a phone-friendly page with a signal-strength finder.
 
     python3 wifi_scanner.py            # then open the printed URL on your phone
     python3 wifi_scanner.py --subnet 192.168.0.0/24 --port 8080
+    python3 wifi_scanner.py --text     # plain-text report in the terminal (default on iPhone/iPad)
 
 Standard library only. Only scan networks you own or are authorized to audit.
 """
-import argparse, errno, gzip, hmac, ipaddress, json, os, platform, re, secrets
-import shutil, socket, subprocess, threading, time, urllib.parse, urllib.request
+import argparse, errno, functools, gzip, hmac, http.client, ipaddress, json, os, platform, re
+import secrets, shutil, socket, subprocess, sys, threading, time, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -18,6 +19,8 @@ MDNS_SERVICES = ['_airplay', '_raop', '_googlecast', '_ipp', '_printer', '_pdl-d
                  '_hap', '_homekit', '_matter', '_companion-link', '_smb', '_ssh', '_rfb',
                  '_afpovertcp', '_spotify-connect', '_sonos', '_amzn-wplay', '_device-info',
                  '_workstation', '_androidtvremote2', '_rtsp', '_axis-video']
+# iOS apps (a-Shell, Pythonista) get no neighbor table, no Wi-Fi radio info and no system commands.
+IS_IOS = sys.platform == 'ios' or platform.machine().startswith(('iPhone', 'iPad', 'iPod'))
 OUI_URLS = ['https://www.wireshark.org/download/automated/data/manuf.gz',
             'https://raw.githubusercontent.com/wireshark/wireshark/release-4.0/manuf']
 OUI_FILE = os.path.expanduser('~/.cache/wifi-scanner/manuf.txt')
@@ -49,10 +52,10 @@ BY_SERVICE = [
     ('camera', {554, 37777, '_rtsp', '_axis-video'}, 'video-stream service (RTSP)'),
     ('printer', {515, 631, 9100, '_ipp', '_printer', '_pdl-datastream'}, 'printing service'),
     ('phone', {62078}, 'iPhone/iPad sync port'),
+    ('network', {53}, 'DNS server (usually the router)'),
     ('computer', {22, 445, 548, 3389, 5900, '_smb', '_ssh', '_rfb', '_afpovertcp', '_workstation'}, 'file-sharing / remote-login service'),
     ('tv', {7000, 8009, 32400, '_googlecast', '_airplay', '_raop', '_spotify-connect', '_sonos', '_amzn-wplay', '_androidtvremote2'}, 'media-casting service'),
     ('iot', {1883, 8883, '_hap', '_homekit', '_matter'}, 'smart-home service'),
-    ('network', {53}, 'DNS server'),
 ]
 # Tier 3: hardware maker from MAC address (low confidence)
 BY_VENDOR = [
@@ -83,6 +86,10 @@ def categorize(d):
         hit = seen & keys
         if hit:
             return cat, 'it offers a %s (%s)' % (what, ', '.join(map(str, sorted(hit, key=str)))), 'medium'
+    for cat, rx in BY_NAME:
+        m = re.search(rx, (d.get('web') or '').lower())
+        if m:
+            return cat, 'its built-in web page is titled "%s"' % d['web'], 'medium'
     vendor = (d.get('vendor') or '').lower()
     for cat, rx in BY_VENDOR:
         if re.search(rx, vendor):
@@ -93,9 +100,11 @@ def categorize(d):
 
 
 def run(cmd):
+    if IS_IOS:
+        return ''
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=20).stdout
-    except (OSError, subprocess.SubprocessError):
+    except Exception:  # missing command, sandboxed platform, timeout: treat as "no data"
         return ''
 
 
@@ -114,6 +123,7 @@ def local_ip():
         s.close()
 
 
+@functools.lru_cache(None)
 def load_oui():
     """MAC-prefix -> manufacturer. Downloads the public Wireshark list once, then caches."""
     if not os.path.exists(OUI_FILE):
@@ -189,14 +199,16 @@ def collect(s, seconds):
             return
 
 
-def ssdp_scan(me):
-    """UPnP discovery: devices announce a description URL with friendly name/model."""
+def ssdp_scan(me, targets=()):
+    """UPnP discovery: devices announce a description URL with friendly name/model.
+    With targets, asks each device directly (works where multicast is blocked, e.g. on phones)."""
     found = {}
     s = mcast_socket(me)
     msg = ('M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\n'
            'MX: 2\r\nST: ssdp:all\r\n\r\n').encode()
     try:
-        s.sendto(msg, ('239.255.255.250', 1900))
+        for ip in targets or ['239.255.255.250']:
+            s.sendto(msg, (ip, 1900))
         for data, (ip, _) in collect(s, 3.5):
             loc = re.search(rb'^location:\s*(\S+)', data, re.I | re.M)
             if loc and ip not in found:
@@ -222,15 +234,22 @@ def ssdp_scan(me):
     return info
 
 
-def mdns_scan(me):
-    """Bonjour discovery: which services each device advertises, plus name/model hints."""
+def qname(*labels):
+    return b''.join(bytes([len(l)]) + l.encode() for l in labels) + b'\0'
+
+
+def mdns_scan(me, targets=()):
+    """Bonjour discovery: which services each device advertises, plus name/model hints.
+    With targets, asks each device directly and also asks it for its own name."""
     info = {}
     s = mcast_socket(me)
     try:
-        for svc in MDNS_SERVICES:
-            q = b''.join(bytes([len(l)]) + l.encode() for l in (svc, '_tcp', 'local')) + b'\0'
-            # header (1 question) + PTR query with the unicast-reply bit set
-            s.sendto(b'\0\0\0\0\0\1\0\0\0\0\0\0' + q + b'\0\x0c\x80\x01', ('224.0.0.251', 5353))
+        for ip in targets or ['224.0.0.251']:
+            names = [qname(svc, '_tcp', 'local') for svc in MDNS_SERVICES]
+            if targets:
+                names.append(qname(*reversed(ip.split('.')), 'in-addr', 'arpa'))
+            for q in names:  # header (1 question) + PTR query with the unicast-reply bit set
+                s.sendto(b'\0\0\0\0\0\1\0\0\0\0\0\0' + q + b'\0\x0c\x80\x01', (ip, 5353))
         for data, (ip, _) in collect(s, 3.5):
             d = info.setdefault(ip, {'services': set()})
             d['services'].update(v for v in MDNS_SERVICES if bytes([len(v)]) + v.encode() in data)
@@ -250,14 +269,26 @@ def mdns_scan(me):
 
 def probe(target):
     ip, port = target
-    s = socket.socket()
-    s.settimeout(0.5)
     try:
-        rc = s.connect_ex((ip, port))
+        with socket.socket() as s:
+            s.settimeout(0.5)
+            return ip, port, s.connect_ex((ip, port))
     except OSError:
-        rc = -1
-    s.close()
-    return ip, port, rc
+        return ip, port, -1
+
+
+def banner(target):
+    """Title of a device's built-in web page (redirects are not followed)."""
+    ip, port = target
+    try:
+        c = http.client.HTTPConnection(ip, port, timeout=2)
+        c.request('GET', '/')
+        body = c.getresponse().read(4096).decode('utf-8', 'replace')
+        c.close()
+        t = re.search(r'<title[^>]*>\s*([^<]{1,80})', body, re.I)
+        return ip, t.group(1).strip() if t else ''
+    except (OSError, http.client.HTTPException):
+        return ip, ''
 
 
 def rdns(ip):
@@ -268,7 +299,7 @@ def rdns(ip):
         return ip, ''
 
 
-def scan(subnet, oui):
+def scan(subnet=None):
     me = local_ip()
     net = ipaddress.ip_network(subnet or me + '/24', strict=False)
     hosts = [str(h) for h in net.hosts()][:1022]
@@ -279,7 +310,7 @@ def scan(subnet, oui):
         except OSError:
             pass
     s.close()
-    with ThreadPoolExecutor(256) as pool:
+    with ThreadPoolExecutor(128) as pool:  # stays under the 256 open-file limit on macOS/iOS
         f_ssdp, f_mdns = pool.submit(ssdp_scan, me), pool.submit(mdns_scan, me)
         ssdp, mdns = f_ssdp.result(), f_mdns.result()
         in_net = lambda d: {ip: v for ip, v in d.items() if ip in hosts}
@@ -292,7 +323,17 @@ def scan(subnet, oui):
                 ports.setdefault(ip, []).append(port)
             if rc in (0, errno.ECONNREFUSED):
                 alive.add(ip)
+        # Second pass: ask quiet devices directly (multicast is often blocked on phones and some routers).
+        quiet = lambda seen: [ip for ip in alive if ip != me and ip not in seen]
+        jobs = [(seen, pool.submit(fn, me, quiet(seen))) for fn, seen in ((ssdp_scan, ssdp), (mdns_scan, mdns)) if quiet(seen)]
+        webs = {}
+        for ip, title in pool.map(banner, [(ip, p) for ip in ports for p in (80, 8080) if p in ports[ip]]):
+            webs[ip] = webs.get(ip) or title
         names = dict(pool.map(rdns, alive))
+        for seen, job in jobs:
+            for ip, v in in_net(job.result()).items():
+                seen.setdefault(ip, v)
+    oui = load_oui() if arp else {}
     gw, devices = find_gateway(net), []
     for ip in sorted(alive, key=ipaddress.ip_address):
         mac = arp.get(ip, '')
@@ -303,15 +344,35 @@ def scan(subnet, oui):
             'hostname': names.get(ip) or md.get('hostname', ''),
             'model': up.get('model') or md.get('model', ''), 'maker': up.get('maker', ''),
             'services': sorted(md.get('services', [])), 'ports': sorted(ports.get(ip, [])),
+            'web': webs.get(ip, ''),
             'is_gateway': ip == gw, 'is_self': ip == me,
         }
         if d['is_self']:
             d['hostname'] = d['hostname'] or socket.gethostname()
+            if IS_IOS:
+                d['model'] = d['model'] or platform.machine()  # e.g. "iPhone15,2"
         d['name'] = (up.get('name') or md.get('name') or d['hostname'].split('.')[0]
                      or (d['vendor'] + ' device' if d['vendor'] else 'Unknown device'))
         d['category'], d['why'], d['confidence'] = categorize(d)
         devices.append(d)
     return {'subnet': str(net), 'devices': devices, 'scanned_at': time.strftime('%H:%M:%S')}
+
+
+def text_report(state):
+    out = ['', 'Radar: %d devices on %s' % (len(state['devices']), state['subnet'])]
+    for key, (label, purpose) in CATS.items():
+        group = [d for d in state['devices'] if d['category'] == key]
+        if not group:
+            continue
+        out += ['', '%s (%d) - %s' % (label.upper(), len(group), purpose)]
+        for d in group:
+            out.append('  %s%s  [%s confidence]' % (d['name'], ' (this device)' if d['is_self'] else '', d['confidence']))
+            what = ' / '.join(filter(None, [d['maker'] or d['vendor'], d['model'], d['web']]))
+            if what:
+                out.append('    ' + what)
+            out.append('    Why: ' + d['why'])
+            out.append('    ' + '  '.join(filter(None, [d['ip'], d['mac'], d['hostname']])))
+    return '\n'.join(out)
 
 
 def nearby_radios():
@@ -401,6 +462,7 @@ async function loadDevices(){
       c.append(n);
       const what=[d.maker||d.vendor,d.model].filter(Boolean).join(' · ');
       if(what)c.append(el('div','',what));
+      if(d.web)c.append(el('div','sub','Web page: '+d.web));
       c.append(el('div','sub','Why: '+d.why));
       c.append(el('div','sub',`IP ${d.ip}`+(d.mac?` · MAC ${d.mac}`+(d.private_mac?' (private)':''):'')+(d.hostname?` · ${d.hostname}`:'')));
       const extra=[...d.services,...d.ports.map(p=>'port '+p)].join(', ');
@@ -439,7 +501,7 @@ loadDevices();
 
 class App:
     def __init__(self, subnet):
-        self.subnet, self.oui = subnet, load_oui()
+        self.subnet = subnet
         self.token = secrets.token_urlsafe(8)
         self.state = {'subnet': '', 'devices': [], 'scanned_at': ''}
         self.scanning = False
@@ -454,7 +516,7 @@ class App:
 
     def _scan(self):
         try:
-            self.state = scan(self.subnet, self.oui)
+            self.state = scan(self.subnet)
             print('Scan done: %d devices on %s' % (len(self.state['devices']), self.state['subnet']))
         except Exception as e:  # keep the server alive; show the failure in the console
             print('! Scan failed: %r' % e)
@@ -508,9 +570,14 @@ def main():
     ap.add_argument('--subnet', help='network to scan, e.g. 192.168.1.0/24 (default: your current /24)')
     ap.add_argument('--port', type=int, default=8737)
     ap.add_argument('--once', action='store_true', help='scan once, print JSON, exit (no web page)')
+    ap.add_argument('--text', action='store_true', help='scan once and print a readable report (default on iPhone/iPad)')
     a = ap.parse_args()
     if a.once:
-        print(json.dumps(scan(a.subnet, load_oui()), indent=1))
+        print(json.dumps(scan(a.subnet), indent=1))
+        return
+    if a.text or IS_IOS:
+        print('Scanning your network (about 30-40 seconds)...')
+        print(text_report(scan(a.subnet)))
         return
     app = App(a.subnet)
     app.start_scan()

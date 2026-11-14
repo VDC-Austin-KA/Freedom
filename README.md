@@ -19,7 +19,16 @@ program does the scanning and your phone's browser is the screen.
 
 The Signal tab then measures from the phone itself: walk around, stronger = closer.
 
-**iPhone, or any phone, with a computer on the same Wi-Fi**
+**iPhone or iPad, everything on the phone**
+
+1. Install the free *a-Shell* app from the App Store.
+2. In a-Shell: `curl -O https://radar.ackerworks.com/wifi_scanner.py` then
+   `python3 wifi_scanner.py`. Allow the local-network prompt.
+
+On iOS the scanner prints a text report instead of serving a page, and there is no
+signal finder (iOS does not let apps read Wi-Fi signal strength).
+
+**Any phone, with a computer on the same Wi-Fi**
 
 1. On the computer: `python3 wifi_scanner.py`
 2. Open the printed "From phone" link in the phone's browser.
@@ -31,12 +40,13 @@ Here the Signal tab measures from the computer (Linux/Windows), not the phone.
 - The signal finder can only range devices that broadcast their own Wi-Fi radio
   (routers, extenders, many printers/cameras/TVs). Ordinary clients are invisible
   to a phone or laptop without special monitor-mode hardware.
-- Android hides MAC addresses from apps, so on-phone scans identify devices by
-  name and services only; a computer scan also gets the hardware maker.
+- Phones hide MAC addresses from apps, so on-phone scans identify devices by
+  name, services and web-page title only; a computer scan also gets the hardware maker.
 - Each device shows a confidence tag; "low" means it is a guess from the maker alone.
 - The link contains a random key; anyone you give it to (on your Wi-Fi) can see the list.
 
-`python3 wifi_scanner.py --once` prints the scan as JSON instead.
+`python3 wifi_scanner.py --text` prints a readable report in the terminal;
+`--once` prints the scan as JSON.
 
 ### Download page
 

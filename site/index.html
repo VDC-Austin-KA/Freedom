@@ -19,6 +19,13 @@ A website cannot scan your network, so Radar is a small Python program you run o
 that is on that Wi-Fi. Nothing is installed and your device list never leaves your network.</p>
 <a class="btn" href="/wifi_scanner.py" download>Download wifi_scanner.py</a>
 
+<h2>iPhone or iPad (everything on the phone)</h2>
+<div class="sub">Install the free app "a-Shell" from the App Store, open it, and paste:</div>
+<pre><button>Copy</button><code>curl -O https://radar.ackerworks.com/wifi_scanner.py
+python3 wifi_scanner.py</code></pre>
+<div class="sub">Tap Allow when iOS asks to find devices on your local network. The device list
+prints in a-Shell after about 40 seconds. Next time, just run the second line.</div>
+
 <h2>Android phone (everything on the phone)</h2>
 <div class="sub">Install Termux and Termux:API from F-Droid, then in Termux:</div>
 <pre><button>Copy</button><code>pkg install -y python termux-api curl
@@ -43,8 +50,10 @@ python wifi_scanner.py</code></pre>
 <li>Only scan networks you own or are allowed to check.</li>
 <li>The signal finder measures from the device running Radar, and can only range devices
 that broadcast their own Wi-Fi radio (routers, extenders, many printers, cameras and TVs).</li>
-<li>Android hides hardware addresses, so scans run on the phone identify devices by name and
-services only. A computer scan also shows the hardware maker.</li>
+<li>Phones hide hardware addresses from apps, so scans run on a phone identify devices by
+name and services only. A computer scan also shows the hardware maker.</li>
+<li>iPhones do not let apps read Wi-Fi signal strength, so the signal finder is not available
+when Radar runs on an iPhone.</li>
 </ul>
 </main>
 <script>
