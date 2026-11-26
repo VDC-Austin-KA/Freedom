@@ -144,7 +144,7 @@ def load_oui():
     table = {}
     with open(OUI_FILE, encoding='utf-8', errors='replace') as f:
         for line in f:
-            p = line.rstrip('\n').split('\t')
+            p = [x.strip() for x in line.split('\t')]  # newer lists pad columns with spaces
             if len(p) >= 2 and len(p[0]) == 8:
                 table[p[0].lower()] = p[-1].strip()
     return table
