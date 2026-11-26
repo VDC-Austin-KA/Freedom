@@ -16,11 +16,11 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 python3 - "$tmp/worker.js" <<'EOF'
 import json, sys
 files = {
-    '/': [open('site/index.html').read(), 'text/html; charset=utf-8'],
-    '/wifi_scanner.py': [open('wifi_scanner.py').read(), 'text/x-python; charset=utf-8'],
-    '/radar_ios.py': [open('radar_ios.py').read(), 'text/x-python; charset=utf-8'],
+    '/': [open('site/index.html', encoding='utf-8').read(), 'text/html; charset=utf-8'],
+    '/wifi_scanner.py': [open('wifi_scanner.py', encoding='utf-8').read(), 'text/x-python; charset=utf-8'],
+    '/radar_ios.py': [open('radar_ios.py', encoding='utf-8').read(), 'text/x-python; charset=utf-8'],
 }
-open(sys.argv[1], 'w').write('const FILES = %s;\n' % json.dumps(files) + '''
+open(sys.argv[1], 'w', encoding='utf-8').write('const FILES = %s;\n' % json.dumps(files) + '''
 export default {
   fetch(req) {
     const f = FILES[new URL(req.url).pathname];
