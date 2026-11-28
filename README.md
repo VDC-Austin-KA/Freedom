@@ -63,4 +63,4 @@ Here the Signal tab measures from the computer (Linux/Windows), not the phone.
 
 `site/` is the public download page served at https://radar.ackerworks.com (a Cloudflare
 Worker that serves `site/index.html`, `wifi_scanner.py` and `radar_ios.py`). Redeploy after changes with
-`CLOUDFLARE_API_TOKEN=… site/deploy.sh`.
+`site/deploy.sh` (Linux, macOS or Windows Git Bash). It uses `CLOUDFLARE_API_TOKEN` if set, otherwise your `wrangler login` session.
